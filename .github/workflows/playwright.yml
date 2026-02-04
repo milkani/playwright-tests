@@ -1,0 +1,90 @@
+name: Playwright Tests
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+    inputs:
+      test_file:
+        description: 'Test file or folder to run (e.g., tests, tests/authorization.spec.ts)'
+        required: false
+        default: 'tests'
+        type: string
+      browser:
+        description: 'Browser to run tests on'
+        required: false
+        default: 'chromium'
+        type: choice
+        options:
+          - chromium
+          - firefox
+          - webkit
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Run Playwright Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    container:
+      image: mcr.microsoft.com/playwright:v1.50.0-noble
+      options: --user root
+    
+    env:
+      BROWSER: ${{ inputs.browser || 'chromium' }}
+      HOME: /root
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run Playwright tests
+        run: |
+          npx playwright test ${{ inputs.test_file || 'tests' }} --project=${{ env.BROWSER }}
+        continue-on-error: false
+      
+      - name: Upload Playwright Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30
+      
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: test-results/
+          retention-days: 30
+      
+      - name: Publish Test Results
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Playwright Test Results
+          path: 'test-results/**/*.xml'
+          reporter: java-junit
+          fail-on-error: false
+      
+      - name: Comment PR with results
+        uses: daun/playwright-report-comment@v3
+        if: always() && github.event_name == 'pull_request'
+        with:
+          report-path: playwright-report
