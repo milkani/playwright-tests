@@ -53,7 +53,26 @@ pipeline {
                     sh 'npm install'
                     sh 'npx playwright install'
                     echo "Installing system dependencies for browsers..."
-                    sh 'sudo -n npx playwright install-deps || npx playwright install-deps'
+                    sh '''
+                        # Try to install dependencies, but don't fail if it's not available
+                        apt-get update && apt-get install -y \
+                            libnss3 \
+                            libnspr4 \
+                            libgconf-2-4 \
+                            libatk1.0-0 \
+                            libatk-bridge2.0-0 \
+                            libcups2 \
+                            libdrm2 \
+                            libxkbcommon0 \
+                            libxcomposite1 \
+                            libxdamage1 \
+                            libxext6 \
+                            libxfixes3 \
+                            libxrandr2 \
+                            libgbm1 \
+                            libpango-1.0-0 \
+                            libpangocairo-1.0-0 || echo "Note: Some system dependencies may already be installed"
+                    '''
                 }
             }
         }
