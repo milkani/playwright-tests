@@ -34,15 +34,19 @@ jobs:
     
     container:
       image: mcr.microsoft.com/playwright:v1.57.0-noble
-      options: --user root
+      options: --user root --ipc=host
     
     env:
       BROWSER: ${{ inputs.browser || 'chromium' }}
       HOME: /root
+      CI: true
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+      
+      - name: Configure Git safe directory
+        run: git config --global --add safe.directory /__w/playwright-tests/playwright-tests
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -55,7 +59,11 @@ jobs:
       
       - name: Run Playwright tests
         run: |
-          npx playwright test ${{ inputs.test_file || 'tests' }} --project=${{ env.BROWSER }}
+          npx playwright test ${{ inputs.test_file || 'tests' }} \
+            --project=${{ env.BROWSER }} \
+            --reporter=list,html,junit
+        env:
+          PLAYWRIGHT_HEADLESS: 1
         continue-on-error: false
       
       - name: Upload Playwright Report
