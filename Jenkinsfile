@@ -52,6 +52,8 @@ pipeline {
                     echo "Installing npm dependencies..."
                     sh 'npm install'
                     sh 'npx playwright install'
+                    echo "Installing system dependencies for browsers..."
+                    sh 'npx playwright install-deps'
                 }
             }
         }
