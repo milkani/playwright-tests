@@ -57,25 +57,37 @@ jobs:
       - name: Install dependencies
         run: npm ci
       
+      - name: Create test-results directory
+        run: mkdir -p test-results
+      
       - name: Run Playwright tests
         run: |
           npx playwright test ${{ inputs.test_file || 'tests' }} \
-            --project=${{ env.BROWSER }} \
-            --reporter=list,html,junit
+            --project=${{ env.BROWSER }}
         env:
           PLAYWRIGHT_HEADLESS: 1
-          PLAYWRIGHT_JUNIT_OUTPUT_NAME: results.xml
         continue-on-error: true
       
       - name: Debug - List test results
         if: always()
         run: |
-          echo "Current directory:"
+          echo "=== Current directory ==="
           pwd
-          echo "Listing test results:"
-          ls -la test-results/ || echo "test-results directory not found"
-          echo "Listing all XML files:"
-          find . -name "*.xml" -type f || echo "No XML files found"
+          echo ""
+          echo "=== Contents of current directory ==="
+          ls -la
+          echo ""
+          echo "=== Contents of test-results directory ==="
+          ls -la test-results/ || echo "test-results directory not found or empty"
+          echo ""
+          echo "=== Contents of playwright-report directory ==="
+          ls -la playwright-report/ || echo "playwright-report directory not found or empty"
+          echo ""
+          echo "=== Find all XML files ==="
+          find . -name "*.xml" -type f 2>/dev/null || echo "No XML files found"
+          echo ""
+          echo "=== Find all directories ==="
+          find . -maxdepth 2 -type d 2>/dev/null
       
       - name: Upload Playwright Report
         uses: actions/upload-artifact@v4
@@ -86,18 +98,27 @@ jobs:
           retention-days: 30
           if-no-files-found: warn
       
-      - name: Upload Test Results
+      - name: Upload Test Results (XML)
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: test-results-${{ github.run_number }}
+          name: junit-results-${{ github.run_number }}
+          path: test-results/*.xml
+          retention-days: 30
+          if-no-files-found: warn
+      
+      - name: Upload All Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: all-test-results-${{ github.run_number }}
           path: test-results/
           retention-days: 30
           if-no-files-found: warn
       
       - name: Publish Test Results
         uses: dorny/test-reporter@v1
-        if: always()
+        if: always() && hashFiles('test-results/*.xml') != ''
         with:
           name: Playwright Test Results
           path: 'test-results/*.xml'
