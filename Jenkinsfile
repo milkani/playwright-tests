@@ -1,5 +1,10 @@
 pipeline {
-    agent any
+    agent {
+        docker {
+            image 'mcr.microsoft.com/playwright:v1.50.0-noble'
+            args '-u root:root'
+        }
+    }
 
     parameters {
         string(
@@ -17,7 +22,7 @@ pipeline {
 
     environment {
         BROWSER = 'chromium'
-        PLAYWRIGHT_IMAGE = 'mcr.microsoft.com/playwright:v1.50.0-noble'
+        HOME = '/root'
     }
 
     stages {
@@ -43,16 +48,21 @@ pipeline {
             }
         }
 
-        stage('Run Tests in Docker') {
+        stage('Install Dependencies') {
+            steps {
+                script {
+                    echo "Installing npm dependencies..."
+                    sh 'npm ci'
+                }
+            }
+        }
+
+        stage('Run Tests') {
             steps {
                 script {
                     echo "Running Playwright tests: ${params.TEST_FILE} with ${BROWSER} browser..."
                     sh '''
-                        docker run --rm \
-                            -v "${WORKSPACE}:/work" \
-                            -w /work \
-                            ${PLAYWRIGHT_IMAGE} \
-                            /bin/bash -c "npm ci && npx playwright test ${TEST_FILE} --project=${BROWSER}"
+                        npx playwright test ${TEST_FILE} --project=${BROWSER}
                     '''
                 }
             }
