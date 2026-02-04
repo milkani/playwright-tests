@@ -1,6 +1,11 @@
 pipeline {
-    agent any
- 
+    agent {
+        docker {
+            image 'mcr.microsoft.com/playwright:v1.50.0-noble'
+            args '-u root:root'
+        }
+    }
+
     parameters {
         string(
             name: 'TEST_FILE',
@@ -8,21 +13,18 @@ pipeline {
             description: 'Test file or folder to run (e.g., tests, tests/authorization.spec.ts)'
         )
     }
- 
+
     options {
         timestamps()
         disableConcurrentBuilds()
         timeout(time: 30, unit: 'MINUTES')
     }
- 
-    tools {
-        nodejs 'NodeJS-20'
-    }
- 
+
     environment {
         BROWSER = 'chromium'
+        HOME = '/root'
     }
- 
+
     stages {
         stage('Cleanup') {
             steps {
@@ -36,7 +38,7 @@ pipeline {
                 }
             }
         }
- 
+
         stage('Checkout') {
             steps {
                 script {
@@ -45,38 +47,16 @@ pipeline {
                 }
             }
         }
- 
+
         stage('Install Dependencies') {
             steps {
                 script {
                     echo "Installing npm dependencies..."
-                    sh 'npm install'
-                    sh 'npx playwright install'
-                    echo "Installing system dependencies for browsers..."
-                    sh '''
-                        # Try to install dependencies, but don't fail if it's not available
-                        apt-get update && apt-get install -y \
-                            libnss3 \
-                            libnspr4 \
-                            libgconf-2-4 \
-                            libatk1.0-0 \
-                            libatk-bridge2.0-0 \
-                            libcups2 \
-                            libdrm2 \
-                            libxkbcommon0 \
-                            libxcomposite1 \
-                            libxdamage1 \
-                            libxext6 \
-                            libxfixes3 \
-                            libxrandr2 \
-                            libgbm1 \
-                            libpango-1.0-0 \
-                            libpangocairo-1.0-0 || echo "Note: Some system dependencies may already be installed"
-                    '''
+                    sh 'npm ci'
                 }
             }
         }
- 
+
         stage('Run Tests') {
             steps {
                 script {
@@ -88,7 +68,7 @@ pipeline {
             }
         }
     }
- 
+
     post {
         always {
             echo "Publishing Playwright HTML Report..."
@@ -103,19 +83,19 @@ pipeline {
             )
             junit 'test-results/**/*.xml'
         }
- 
+
         failure {
             echo "Tests failed. Check the Playwright Report for details."
         }
- 
+
         success {
             echo "All tests passed successfully!"
         }
- 
+
         unstable {
             echo "Build is unstable. Some tests may have failed."
         }
- 
+
         cleanup {
             deleteDir()
         }
