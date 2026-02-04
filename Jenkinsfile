@@ -53,7 +53,7 @@ pipeline {
                     sh 'npm install'
                     sh 'npx playwright install'
                     echo "Installing system dependencies for browsers..."
-                    sh 'npx playwright install-deps'
+                    sh 'sudo -n npx playwright install-deps || npx playwright install-deps'
                 }
             }
         }
